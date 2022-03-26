@@ -2,6 +2,7 @@ import re
 from typing import *
 import requests
 from bs4 import BeautifulSoup
+from pdf_analysis import PdfAnalysis
 
 
 class HKRequests:
@@ -10,7 +11,7 @@ class HKRequests:
     # _edate : end date(종료날짜)
     # 투자 의견 : [BUY, HOLD, NR, OUTPERFORM, REDUCE, STRONGBUY, SUSPENDED, TRADINGBUY, UNDERPERFORM, ...]
     def __init__(self, _sdate: str, _edate: str):
-        self.target_corp = {'대신증권', '유안타증권', '유진투자증권', '키움증권', '한양증권', '하이투자증권', '한화투자증권'}
+        self.target_corp = {'키움증권', '대신증권', '하이투자증권'}  # '유안타증권', '유진투자증권', '한양증권', '한화투자증권'
         self.suggestion_correction = {'-': 'NR', 'NOTRATED': 'NR', 'NA': 'NR', 'N/A': 'NR', '중립': 'HOLD',
                                       '매수': 'BUY', 'MARKETPERFORM': 'HOLD', 'NEUTRAL': 'HOLD',
                                       '적극매수': 'STRONGBUY', '투자의견없음': 'NR'}
@@ -89,10 +90,18 @@ class HKRequests:
                         writer: str = tag.select('td')[4].get_text().strip()
                         pdf_link: str = self.url + tag.select_one('a')['href']
 
-                        reports_list.append({'date': date, 'title': title, 'report_corp': report_corp,
-                                             'company_name': company_name, 'company_code': company_code,
-                                             'target_est': target_est, 'suggestion': suggestion,
-                                             'writer': writer, 'pdf_link': pdf_link})
+                        # url -> 현재 주가, 기준 날짜, 리포트 요약
+                        analyzer = PdfAnalysis()
+                        analyzer.analysis(pdf_link)
+                        current_est: int = analyzer.current_est
+                        current_est_date: str = analyzer.current_est_date
+                        summary: str = analyzer.summary
+
+                        reports_list.append({'title': title, 'company_name': company_name, 'company_code': company_code,
+                                             'date': date, 'suggestion': suggestion, 'writer': writer, 'report_corp': report_corp,
+                                             'target_est': target_est, 'current_est': current_est, 'current_est_date': current_est_date,
+                                             'pdf_link': pdf_link, 'summary': summary})
+
             except Exception as e:
                 print(e, flush=True)
                 return reports_list
