@@ -3,6 +3,7 @@ import kss
 import torch
 import requests
 from tika import parser
+from datetime import datetime
 from transformers import PreTrainedTokenizerFast
 from transformers import BartForConditionalGeneration
 
@@ -43,8 +44,15 @@ class PdfAnalysis:
     def __get_current_est_info(self):
         text: str = re.search(r'[^목표]{3}[주종]가\(?[^A-Za-z가-힣]*\)?[\d,]+', self.content).group()[3:]
         raw_current_est: str = re.search(r'\s[\d,]+', text).group().strip().replace(',', '')
+        # 현재 주가
         current_est: int = int(raw_current_est) if raw_current_est.isdigit() else 0
-        current_est_date: str = re.search(r'\([\d./]+\)', text).group()[1:-1].strip()
+        # 현재 주가 기준 날짜
+        year = str(datetime.today().year)
+        date_text: str = re.sub(r'[/.]', '-', re.search(r'\([\d./]+\)', text).group()[1:-1].strip())
+        date_text = year + '-' + date_text if date_text.count('-') < 2 else date_text
+        date_text = year[:2] + date_text if date_text.find('-') == 2 else date_text
+        date_obj = datetime.strptime(date_text, '%Y-%m-%d')
+        current_est_date = str(date_obj.date())
         return current_est, current_est_date
 
     def __get_summary(self) -> str:
