@@ -1,3 +1,4 @@
+import os
 import re
 import kss
 import torch
@@ -10,6 +11,9 @@ from transformers import BartForConditionalGeneration
 
 # from pykospacing import Spacing
 # from hanspell import spell_checker
+
+
+os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
 
 class PdfAnalysis:
@@ -42,17 +46,22 @@ class PdfAnalysis:
         return text
 
     def __get_current_est_info(self):
-        text: str = re.search(r'[^목표]{3}[주종]가\(?[^A-Za-z가-힣]*\)?[\d,]+', self.content).group()[3:]
-        raw_current_est: str = re.search(r'\s[\d,]+', text).group().strip().replace(',', '')
-        # 현재 주가
-        current_est: int = int(raw_current_est) if raw_current_est.isdigit() else 0
-        # 현재 주가 기준 날짜
-        year = str(datetime.today().year)
-        date_text: str = re.sub(r'[/.]', '-', re.search(r'\([\d./]+\)', text).group()[1:-1].strip())
-        date_text = year + '-' + date_text if date_text.count('-') < 2 else date_text
-        date_text = year[:2] + date_text if date_text.find('-') == 2 else date_text
-        date_obj = datetime.strptime(date_text, '%Y-%m-%d')
-        current_est_date = str(date_obj.date())
+        try:
+            text: str = re.search(r'[^목표]{3}[주종]가\(?[^A-Za-z가-힣]*\)?[\d,]+', self.content).group()[3:]
+            raw_current_est: str = re.search(r'\s[\d,]+', text).group().strip().replace(',', '')
+            # 현재 주가
+            current_est: int = int(raw_current_est) if raw_current_est.isdigit() else 0
+            # 현재 주가 기준 날짜
+            year = str(datetime.today().year)
+            date_text: str = re.sub(r'[/.]', '-', re.search(r'\([\d./]+\)', text).group()[1:-1].strip())
+            date_text = year + '-' + date_text if date_text.count('-') < 2 else date_text
+            date_text = year[:2] + date_text if date_text.find('-') == 2 else date_text
+            date_obj = datetime.strptime(date_text, '%Y-%m-%d')
+            current_est_date = str(date_obj.date())
+        except AttributeError as e:
+            print(e, flush=True)
+            return '', ''
+
         return current_est, current_est_date
 
     def __get_summary(self) -> str:
