@@ -1,17 +1,16 @@
 import os
 import re
-import kss
-import torch
-import requests
-from tika import parser
 from datetime import datetime
-from transformers import PreTrainedTokenizerFast
-from transformers import BartForConditionalGeneration
-
-
 # from pykospacing import Spacing
 # from hanspell import spell_checker
+from typing import List
 
+import kss
+import requests
+import torch
+from tika import parser
+from transformers import BartForConditionalGeneration
+from transformers import PreTrainedTokenizerFast
 
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
@@ -73,14 +72,14 @@ class PdfAnalysis:
 
         # 문장 분리 (kss, 마침표(.))
         split_sent = kss.split_sentences(
-            text=self.content)
-        # backend="mecab")  # 문장분리 속도 증가
+            text=self.content,
+            backend="mecab")  # 문장분리 속도 증가
         opinion_sent = []
         for sent in split_sent:
             opinion_sent += sent.split('. ')
 
         # 전문가 의견 문장만 추출
-        opinion_sent: list[str] = [sent for sent in opinion_sent
+        opinion_sent: List[str] = [sent for sent in opinion_sent
                                    if 10 < len(sent) < 200
                                    and len(re.findall(r'\s[^가-힣]{1,10}\s', sent)) < 6
                                    and len(re.findall(r'표\d', sent)) == 0]
