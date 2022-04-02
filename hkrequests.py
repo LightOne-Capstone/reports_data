@@ -50,6 +50,7 @@ class HKRequests:
             return 0
 
     def request(self) -> List[Dict]:
+        analyzer = PdfAnalysis()
         raw_code_compiler = re.compile(r'(\(\d{6}[\D]*)')
         company_code_compiler = re.compile(r'(\d{6})')
         reports_list = []
@@ -65,7 +66,8 @@ class HKRequests:
 
                     for tag in html.select('tbody>tr'):
                         # 목표증권사가 아니면 reject
-                        if (report_corp := tag.select('td')[5].get_text().strip()) not in self.target_corp:
+                        report_corp = tag.select('td')[5].get_text().strip()
+                        if report_corp not in self.target_corp:
                             continue
 
                         title: str = tag.select_one('div>strong').get_text().strip()
@@ -84,14 +86,14 @@ class HKRequests:
                         raw_target_est: str = tag.select('td')[2].get_text().strip().replace(',', '')
                         target_est: int = int(raw_target_est) if raw_target_est.isdigit() else 0
 
-                        if (suggestion := tag.select('td')[3].get_text().strip().upper().replace(' ', '')) in self.suggestion_correction:
+                        suggestion = tag.select('td')[3].get_text().strip().upper().replace(' ', '')
+                        if suggestion in self.suggestion_correction:
                             suggestion = self.suggestion_correction[suggestion]
 
                         writer: str = tag.select('td')[4].get_text().strip()
                         pdf_link: str = self.url + tag.select_one('a')['href']
 
                         # url -> 현재 주가, 기준 날짜, 리포트 요약
-                        analyzer = PdfAnalysis()
                         analyzer.analysis(pdf_link)
                         current_est: int = analyzer.current_est
                         current_est_date: str = analyzer.current_est_date
