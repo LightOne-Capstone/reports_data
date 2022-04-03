@@ -2,7 +2,6 @@ import re
 from typing import *
 import requests
 from bs4 import BeautifulSoup
-from pdf_analysis import PdfAnalysis
 
 
 class HKRequests:
@@ -10,7 +9,7 @@ class HKRequests:
     # _sdate : start date(시작날짜)
     # _edate : end date(종료날짜)
     # 투자 의견 : [BUY, HOLD, NR, OUTPERFORM, REDUCE, STRONGBUY, SUSPENDED, TRADINGBUY, UNDERPERFORM, ...]
-    def __init__(self, _sdate: str, _edate: str):
+    def __init__(self, _sdate: str, _edate: str, _analyzer):
         self.target_corp = {'키움증권', '대신증권', '하이투자증권'}  # '유안타증권', '유진투자증권', '한양증권', '한화투자증권'
         self.suggestion_correction = {'-': 'NR', 'NOTRATED': 'NR', 'NA': 'NR', 'N/A': 'NR', '중립': 'HOLD',
                                       '매수': 'BUY', 'MARKETPERFORM': 'HOLD', 'NEUTRAL': 'HOLD',
@@ -24,6 +23,7 @@ class HKRequests:
 
         self.sdate = _sdate
         self.edate = _edate
+        self.analyzer = _analyzer
         self.now_page = 1
         self.end_page = self.__get_end_page()
         assert self.end_page >= 1, "검색된 날짜에 리포트가 없음"
@@ -50,7 +50,6 @@ class HKRequests:
             return 0
 
     def request(self) -> List[Dict]:
-        analyzer = PdfAnalysis()
         raw_code_compiler = re.compile(r'(\(\d{6}[\D]*)')
         company_code_compiler = re.compile(r'(\d{6})')
         reports_list = []
@@ -94,10 +93,10 @@ class HKRequests:
                         pdf_link: str = self.url + tag.select_one('a')['href']
 
                         # url -> 현재 주가, 기준 날짜, 리포트 요약
-                        analyzer.analysis(pdf_link)
-                        current_est: int = analyzer.current_est
-                        current_est_date: str = analyzer.current_est_date
-                        summary: str = analyzer.summary
+                        self.analyzer.analysis(pdf_link)
+                        current_est: int = self.analyzer.current_est
+                        current_est_date: str = self.analyzer.current_est_date
+                        summary: str = self.analyzer.summary
 
                         reports_list.append({'title': title, 'company_name': company_name, 'company_code': company_code,
                                              'date': date, 'suggestion': suggestion, 'writer': writer, 'report_corp': report_corp,
@@ -111,16 +110,3 @@ class HKRequests:
             self.now_page += 1
 
         return reports_list
-
-
-if __name__ == '__main__':
-    from datetime import datetime, timedelta
-
-    end_date = datetime.now()
-    start_date = str((end_date - timedelta(days=90)).date())
-    end_date = str(end_date.date())
-
-    crawler = HKRequests(_sdate=start_date, _edate=end_date)
-    reports = crawler.request()
-
-    print(reports)

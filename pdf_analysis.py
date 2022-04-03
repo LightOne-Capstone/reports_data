@@ -9,8 +9,7 @@ import kss
 import requests
 import torch
 from tika import parser
-from transformers import BartForConditionalGeneration
-from transformers import PreTrainedTokenizerFast
+
 
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
@@ -19,9 +18,9 @@ class PdfAnalysis:
     max_content_len = 3000  # 리포트 초반의 의견 부분만 처리 -> 문장 분리 속도 고려
     max_sent_len = 500  # 전문가 의견 문장의 최대 길이
 
-    def __init__(self):
-        self.model = BartForConditionalGeneration.from_pretrained('gogamza/kobart-summarization').eval()
-        self.tokenizer = PreTrainedTokenizerFast.from_pretrained('gogamza/kobart-summarization')
+    def __init__(self, _model, _tokenizer):
+        self.model = _model
+        self.tokenizer = _tokenizer
         self.resource = None
         self.content = None
         self.current_est = None
@@ -47,8 +46,8 @@ class PdfAnalysis:
     def __get_current_est_info(self):
         try:
             text: str = re.search(r'[^목표]{3}[주종]가\(?[^A-Za-z가-힣]*\)?[\d,]+', self.content).group()[3:]
-            raw_current_est: str = re.search(r'\s[\d,]+', text).group().strip().replace(',', '')
             # 현재 주가
+            raw_current_est: str = re.search(r'\s[\d,]+', text).group().strip().replace(',', '')
             current_est: int = int(raw_current_est) if raw_current_est.isdigit() else 0
             # 현재 주가 기준 날짜
             year = str(datetime.today().year)
@@ -99,8 +98,14 @@ class PdfAnalysis:
 
 if __name__ == '__main__':
     # example
-    url = 'https://consensus.hankyung.com/apps.analysis/analysis.downpdf?report_idx=606859'
-    pa = PdfAnalysis()
+    from transformers import BartForConditionalGeneration
+    from transformers import PreTrainedTokenizerFast
+
+    model = BartForConditionalGeneration.from_pretrained('gogamza/kobart-summarization').eval()
+    tokenizer = PreTrainedTokenizerFast.from_pretrained('gogamza/kobart-summarization')
+
+    url = 'https://consensus.hankyung.com/apps.analysis/analysis.downpdf?report_idx=606966'
+    pa = PdfAnalysis(_model=model, _tokenizer=tokenizer)
     pa.analysis(url)
     print(pa.current_est)
     print(pa.current_est_date)
