@@ -40,12 +40,14 @@ class PdfAnalysis:
         with requests.get(url=self.resource, headers=headers) as req:
             response = parser.from_buffer(req.content)
         text: str = response['content'].strip()
-        text: str = re.sub('\n', ' ', text)
+        text: str = re.sub('\n', '', text)
+        text: str = text[:self.max_content_len]
         return text
 
     def __get_current_est_info(self):
         try:
-            text: str = re.search(r'[^목표]{3}[주종]가\(?[^A-Za-z가-힣]*\)?[\d,]+', self.content).group()[3:]
+            text: str = re.search(r'[^목표]{3}[주종]가[\s:]{,2}[\d,]{,10}원?\([^A-Za-z가-힣]{1,10}\)[\s:]{,2}[\d,]{,10}원?',
+                                  self.content).group()[3:]
             # 현재 주가
             raw_current_est: str = re.search(r'\s[\d,]+', text).group().strip().replace(',', '')
             current_est: int = int(raw_current_est) if raw_current_est.isdigit() else 0
@@ -58,13 +60,12 @@ class PdfAnalysis:
             current_est_date = str(date_obj.date())
         except AttributeError as e:
             print(e, flush=True)
-            return '', ''
+            return None, None
 
         return current_est, current_est_date
 
     def __get_summary(self) -> str:
         # 필요 없는 정보, 특수문자 제거
-        self.content = self.content[:self.max_content_len]
         self.content = re.sub(r'\([^가-힣]{1,30}\)', '', self.content)  # (QoQ -21%, YoY 6%)
         self.content = re.sub(r'\d\)', '', self.content)  # 1) 2) 3) ..
         self.content = re.sub(r'\s+[\->]\s+', '. ', self.content)
