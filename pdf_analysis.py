@@ -1,9 +1,6 @@
 import os
 import re
 from datetime import datetime
-# from pykospacing import Spacing
-# from hanspell import spell_checker
-from typing import List
 
 import kss
 import requests
@@ -67,23 +64,29 @@ class PdfAnalysis:
     def __get_summary(self) -> str:
         # 필요 없는 정보, 특수문자 제거
         self.content = re.sub(r'\([^가-힣]{1,30}\)', '', self.content)  # (QoQ -21%, YoY 6%)
+        self.content = re.sub(r'[’‘①②③④⑤]', '', self.content)  # 불필요한 특수문자
+        self.content = re.sub(r'\s+[\->]\s+', '. ', self.content)  # '-', '>'
+        self.content = re.sub(r'\s*▶\s*', '. ', self.content)  # '▶'
         self.content = re.sub(r'\d\)', '', self.content)  # 1) 2) 3) ..
-        self.content = re.sub(r'\s+[\->]\s+', '. ', self.content)
 
-        # 문장 분리 (kss, 마침표(.))
+        # 문장 분리 (kss)
         split_sent = kss.split_sentences(
             text=self.content,
             backend="mecab")  # 문장분리 속도 증가
         opinion_sent = []
         for sent in split_sent:
-            opinion_sent += sent.split('. ')
+            opinion_sent += re.split(r'[.?!:] ', sent)  # 특정 특수문자로 추가 분리
 
         # 전문가 의견 문장만 추출
-        opinion_sent: List[str] = [sent for sent in opinion_sent
-                                   if 10 < len(sent) < 200
-                                   and len(re.findall(r'\s[^가-힣]{1,10}\s', sent)) < 6
-                                   and len(re.findall(r'표\d', sent)) == 0]
-        opinion: str = '. '.join(opinion_sent)
+        opinion_sent = [sent for sent in opinion_sent
+                        if 30 < len(sent) < 200
+                        and len(re.findall(r'[^가-힣]{1,7}\s', sent)) < 5
+                        and len(re.findall(r'[\d\s\-.,/%]{10,}', sent)) == 0
+                        and len(re.findall(r'[^a-zA-Z가-힣\d\s\-,.()+%/~&”<>]', sent)) == 0
+                        and len(re.findall(r'표\s?\d', sent)) == 0
+                        and len(re.findall(r'그림\s?\d', sent)) == 0
+                        and sent.find('자료') == -1]
+        opinion = '. '.join(opinion_sent).replace('..', '.')
 
         # 문장요약 알고리즘
         raw_input_ids = self.tokenizer.encode(opinion)
