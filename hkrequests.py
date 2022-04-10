@@ -10,12 +10,12 @@ class HKRequests:
     # _edate : end date(종료날짜)
     # 투자 의견 : [BUY, HOLD, NR, OUTPERFORM, REDUCE, STRONGBUY, SUSPENDED, TRADINGBUY, UNDERPERFORM, ...]
     def __init__(self, _sdate: str, _edate: str, _analyzer):
-        self.target_corp = {'키움증권', '대신증권', '하이투자증권'}  # '유안타증권', '유진투자증권', '한양증권', '한화투자증권'
+        self.target_corp = {'대신증권', '유안타증권', '유진투자증권', '키움증권' '하이투자증권'}  # '한양증권', '한화투자증권'
         self.suggestion_correction = {'-': 'NR', 'NOTRATED': 'NR', 'NA': 'NR', 'N/A': 'NR', '중립': 'HOLD',
                                       '매수': 'BUY', 'MARKETPERFORM': 'HOLD', 'NEUTRAL': 'HOLD',
                                       '적극매수': 'STRONGBUY', '투자의견없음': 'NR'}
 
-        self.url = 'http://consensus.hankyung.com'
+        self.url = 'https://consensus.hankyung.com'
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
                           'Chrome/51.0.2704.103 Safari/537.36'
@@ -98,10 +98,14 @@ class HKRequests:
                         current_est_date: str = self.analyzer.current_est_date
                         summary: str = self.analyzer.summary
 
-                        reports_list.append({'title': title, 'company_name': company_name, 'company_code': company_code,
-                                             'date': date, 'suggestion': suggestion, 'writer': writer, 'report_corp': report_corp,
-                                             'target_est': target_est, 'current_est': current_est, 'current_est_date': current_est_date,
-                                             'pdf_link': pdf_link, 'summary': summary})
+                        report: Dict = {'title': title, 'company_name': company_name, 'company_code': company_code,
+                                        'date': date, 'suggestion': suggestion, 'writer': writer, 'report_corp': report_corp,
+                                        'target_est': target_est, 'current_est': current_est, 'current_est_date': current_est_date,
+                                        'pdf_link': pdf_link, 'summary': summary}
+
+                        # 속성 값이 모두 비어있지 않은 경우만 리스트에 추가
+                        if None not in report.values():
+                            reports_list.append(report)
 
             except Exception as e:
                 print(e, flush=True)
