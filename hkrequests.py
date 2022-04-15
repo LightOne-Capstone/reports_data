@@ -2,13 +2,16 @@ import re
 from typing import *
 import requests
 from bs4 import BeautifulSoup
+from pdf_analysis import PdfAnalysis
 
 
 class HKRequests:
-    # 날짜 포맷 : 2022-01-01
-    # _sdate : start date(시작날짜)
-    # _edate : end date(종료날짜)
-    # 투자 의견 : [BUY, HOLD, NR, OUTPERFORM, REDUCE, STRONGBUY, SUSPENDED, TRADINGBUY, UNDERPERFORM, ...]
+    """
+    날짜 포맷 : 2022-01-01
+    _sdate : start date(시작날짜)
+    _edate : end date(종료날짜)
+    투자 의견 : [BUY, HOLD, NR, OUTPERFORM, REDUCE, STRONGBUY, SUSPENDED, TRADINGBUY, UNDERPERFORM, ...]
+    """
     def __init__(self, _sdate: str, _edate: str, _analyzer):
         self.target_corp = {'대신증권', '유안타증권', '유진투자증권', '키움증권' '하이투자증권'}  # '한양증권', '한화투자증권'
         self.suggestion_correction = {'-': 'NR', 'NOTRATED': 'NR', 'NA': 'NR', 'N/A': 'NR', '중립': 'HOLD',
@@ -63,13 +66,13 @@ class HKRequests:
                 with requests.get(url=f'{self.url}/apps.analysis/analysis.list', headers=self.headers, params=params) as req:
                     html = BeautifulSoup(req.content, 'html.parser')
 
-                    for tag in html.select('tbody>tr'):
+                    for tag in html.select('tbody > tr'):
                         # 목표증권사가 아니면 reject
                         report_corp = tag.select('td')[5].get_text().strip()
                         if report_corp not in self.target_corp:
                             continue
 
-                        title: str = tag.select_one('div>strong').get_text().strip()
+                        title: str = tag.select_one('div > strong').get_text().strip()
                         raw_code: Match = raw_code_compiler.search(title)
 
                         # 제목에 종목코드가 없으면 reject
