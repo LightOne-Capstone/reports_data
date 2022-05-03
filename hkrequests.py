@@ -1,5 +1,6 @@
 import re
 from typing import *
+import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 from pdf_analysis import PdfAnalysis
@@ -30,6 +31,11 @@ class HKRequests:
         self.now_page = 1
         self.end_page = self.__get_end_page()
         assert self.end_page >= 1, "검색된 날짜에 리포트가 없음"
+        self.category_file_path = 'corplist.csv'
+        self.category_df = self.__get_category_dataframe()
+
+    def __get_category_dataframe(self):
+        return pd.read_csv(self.category_file_path, encoding='euc-kr', converters={'종목코드': lambda x: str(x)})
 
     def __get_end_page(self) -> int:
         params = {
@@ -95,6 +101,11 @@ class HKRequests:
                         writer: str = tag.select('td')[4].get_text().strip()
                         pdf_link: str = self.url + tag.select_one('a')['href']
 
+                        category = ''
+                        label = self.category_df.loc[self.category_df['종목코드'] == company_code]['업종']
+                        if not label.empty:
+                            category = label.iloc[0]
+
                         # url -> 현재 주가, 기준 날짜, 리포트 요약
                         self.analyzer.analysis(pdf_link)
                         current_est: int = self.analyzer.current_est
@@ -102,9 +113,9 @@ class HKRequests:
                         summary: str = self.analyzer.summary
 
                         report: Dict = {'title': title, 'company_name': company_name, 'company_code': company_code,
-                                        'date': date, 'suggestion': suggestion, 'writer': writer, 'report_corp': report_corp,
-                                        'target_est': target_est, 'current_est': current_est, 'current_est_date': current_est_date,
-                                        'pdf_link': pdf_link, 'summary': summary}
+                                        'category': category, 'date': date, 'suggestion': suggestion, 'writer': writer,
+                                        'report_corp': report_corp, 'target_est': target_est, 'current_est': current_est,
+                                        'current_est_date': current_est_date, 'pdf_link': pdf_link, 'summary': summary}
 
                         # 속성 값이 모두 비어있지 않은 경우만 리스트에 추가
                         if None not in report.values():
