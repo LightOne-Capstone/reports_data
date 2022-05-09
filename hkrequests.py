@@ -35,6 +35,8 @@ class HKRequests:
         self.category_file_path = 'corplist.csv'
         self.category_df = self.__get_category_dataframe()
 
+        self.report_number = 1
+
     def __get_category_dataframe(self):
         return pd.read_csv(self.category_file_path, encoding='euc-kr', converters={'종목코드': lambda x: str(x)})
 
@@ -95,6 +97,8 @@ class HKRequests:
                         # 속성 값이 모두 비어있지 않은 경우만 리스트에 추가
                         if None not in report.values():
                             reports_list.append(report)
+                            print('Report #{} analysis completed.'.format(self.report_number))
+                            self.report_number += 1
 
             except Exception as e:
                 print(e, flush=True)
