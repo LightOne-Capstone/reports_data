@@ -56,7 +56,6 @@ class PdfAnalysis:
             date_obj = datetime.strptime(date_text, '%Y-%m-%d')
             current_est_date = str(date_obj.date())
         except AttributeError as e:
-            print(e, flush=True)
             return None, None
 
         return current_est, current_est_date
@@ -108,7 +107,7 @@ if __name__ == '__main__':
     model = BartForConditionalGeneration.from_pretrained('gogamza/kobart-summarization').eval()
     tokenizer = PreTrainedTokenizerFast.from_pretrained('gogamza/kobart-summarization')
 
-    url = 'https://consensus.hankyung.com/apps.analysis/analysis.downpdf?report_idx=606966'
+    url = 'https://markets.hankyung.com/pdf/2022/05/d2ade73ba832488c0c00d3974ef4670d'
     pa = PdfAnalysis(_model=model, _tokenizer=tokenizer)
     pa.analysis(url)
     print(pa.current_est)
