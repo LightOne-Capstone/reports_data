@@ -1,4 +1,3 @@
-import os
 import re
 from datetime import datetime
 
@@ -6,9 +5,6 @@ import kss
 import requests
 import torch
 from tika import parser
-
-
-os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
 
 class PdfAnalysis:
@@ -22,13 +18,14 @@ class PdfAnalysis:
         self.content = None
         self.current_est = None
         self.current_est_date = None
+        self.opinion = None
         self.summary = None
 
     def analysis(self, resource: str):
         self.resource = resource
         self.content = self.__get_text()
         self.current_est, self.current_est_date = self.__get_current_est_info()
-        self.summary = self.__get_summary()
+        self.opinion, self.summary = self.__get_summary()
 
     def __get_text(self) -> str:
         # url로 텍스트 추출
@@ -60,7 +57,7 @@ class PdfAnalysis:
 
         return current_est, current_est_date
 
-    def __get_summary(self) -> str:
+    def __get_summary(self) -> (str, str):
         # 필요 없는 정보, 특수문자 제거
         self.content = re.sub(r'\([^가-힣]{1,30}\)', '', self.content)  # (QoQ -21%, YoY 6%)
         self.content = re.sub(r'[’‘①②③④⑤]', '', self.content)  # 불필요한 특수문자
@@ -96,7 +93,7 @@ class PdfAnalysis:
                                           repetition_penalty=12.0)
         summary: str = self.tokenizer.decode(summary_ids.squeeze().tolist(), skip_special_tokens=True)
 
-        return summary
+        return opinion, summary
 
 
 if __name__ == '__main__':
@@ -112,4 +109,5 @@ if __name__ == '__main__':
     pa.analysis(url)
     print(pa.current_est)
     print(pa.current_est_date)
+    print(pa.opinion)
     print(pa.summary)
