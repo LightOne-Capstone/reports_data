@@ -1,3 +1,5 @@
+import os
+import logging
 import argparse
 
 from hkrequests import HKRequests
@@ -8,6 +10,10 @@ from typing import *
 
 from transformers import BartForConditionalGeneration
 from transformers import PreTrainedTokenizerFast
+
+os.environ["TOKENIZERS_PARALLELISM"] = "true"
+logger = logging.getLogger('transformers.tokenization_utils_base')
+logger.setLevel(logging.ERROR)
 
 if __name__ == '__main__':
     now = datetime.now()

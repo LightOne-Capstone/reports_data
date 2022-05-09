@@ -1,4 +1,3 @@
-import os
 import re
 from datetime import datetime
 
@@ -6,9 +5,6 @@ import kss
 import requests
 import torch
 from tika import parser
-
-
-os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
 
 class PdfAnalysis:
