@@ -1,8 +1,6 @@
-import re
 from typing import *
 import pandas as pd
 import requests
-from bs4 import BeautifulSoup
 
 
 class HKRequests:
@@ -18,87 +16,64 @@ class HKRequests:
                                       '매수': 'BUY', 'MARKETPERFORM': 'HOLD', 'NEUTRAL': 'HOLD',
                                       '적극매수': 'STRONGBUY', '투자의견없음': 'NR'}
 
-        self.url = 'https://consensus.hankyung.com'
-        self.headers = {
-            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
-                          'Chrome/51.0.2704.103 Safari/537.36'
+        self.url = 'https://markets.hankyung.com/api/consensus/search/report'
+        self.params = {
+            'page': 1,
+            'reportType': 'CO',
+            'fromDate': _sdate,
+            'toDate': _edate,
+            'gradeCode': 'ALL',
+            'changePrices': 'ALL',
+            'searchType': 'ALL',
         }
 
-        self.sdate = _sdate
-        self.edate = _edate
         self.analyzer = _analyzer
-        self.now_page = 1
-        self.end_page = self.__get_end_page()
-        assert self.end_page >= 1, "검색된 날짜에 리포트가 없음"
+
+        self.last_page = self.__get_last_page()
+        assert self.last_page >= 1, "잘못된 요청"
+
         self.category_file_path = 'corplist.csv'
         self.category_df = self.__get_category_dataframe()
 
     def __get_category_dataframe(self):
         return pd.read_csv(self.category_file_path, encoding='euc-kr', converters={'종목코드': lambda x: str(x)})
 
-    def __get_end_page(self) -> int:
-        params = {
-            'report_type': 'CO', 'sdate': self.sdate, 'edate': self.edate, 'now_page': self.now_page, 'pagenum': 80
-        }
-
-        try:
-            with requests.get(url=f'{self.url}/apps.analysis/analysis.list', headers=self.headers, params=params) as req:
-                html = BeautifulSoup(req.content, 'html.parser')
-
-                # 결과 없음
-                if html.select('tr.listNone'):
-                    return 0
-
-                # 마지막 페이지 설정
-                _end_page = html.select_one('a.btn.last')['href'].split('=').pop()
-                return int(_end_page) if _end_page.isdigit() else 0
-
-        except Exception as e:
-            print(e, flush=True)
-            return 0
+    def __get_last_page(self) -> int:
+        with requests.get(url=self.url, params=self.params) as response:
+            return response.json().get('last_page', 0)
 
     def request(self) -> List[Dict]:
-        raw_code_compiler = re.compile(r'(\(\d{6}\D*)')
-        company_code_compiler = re.compile(r'(\d{6})')
         reports_list = []
 
-        while self.now_page <= self.end_page:
-            params = {
-                'report_type': 'CO', 'sdate': self.sdate, 'edate': self.edate, 'now_page': self.now_page, 'pagenum': 80
-            }
-
+        while self.params['page'] <= self.last_page:
             try:
-                with requests.get(url=f'{self.url}/apps.analysis/analysis.list', headers=self.headers, params=params) as req:
-                    html = BeautifulSoup(req.content, 'html.parser')
+                with requests.get(url=self.url, params=self.params) as response:
+                    response_data = response.json().get('data', [])
 
-                    for tag in html.select('tbody > tr'):
+                    if type(response_data) is dict:
+                        response_data = response_data.values()
+
+                    for report in response_data:
                         # 목표증권사가 아니면 reject
-                        report_corp = tag.select('td')[5].get_text().strip()
+                        report_corp = report.get('OFFICE_NAME', '').replace(' ', '')
                         if report_corp not in self.target_corp:
                             continue
 
-                        title: str = tag.select_one('div > strong').get_text().strip()
-                        raw_code: Match = raw_code_compiler.search(title)
-
-                        # 제목에 종목코드가 없으면 reject
-                        if raw_code is None:
+                        # 종목 코드가 없으면 reject
+                        company_code = report.get('BUSINESS_CODE', '')
+                        if not company_code:
                             continue
 
-                        in_raw_code: Match = company_code_compiler.search(raw_code.group())
-                        company_code: str = in_raw_code.group() if in_raw_code is not None else '000000'
-                        company_name: str = re.sub(pattern=r'[\[\(]([가-힣\w\s])+[\]\)]', repl='',
-                                                   string=title[:raw_code.start()]).strip()
+                        title = report.get('REPORT_TITLE', '')
+                        company_name = report.get('BUSINESS_NAME', '')
+                        report_date = report.get('REPORT_DATE', '')
+                        pdf_link = report.get('REPORT_FILEPATH', '')
+                        target_est = int(report.get('TARGET_STOCK_PRICES', 0))
+                        writer = report.get('REPORT_WRITER', '')
 
-                        date: str = tag.select_one('.first.txt_number').get_text().strip()
-                        raw_target_est: str = tag.select('td')[2].get_text().strip().replace(',', '')
-                        target_est: int = int(raw_target_est) if raw_target_est.isdigit() else 0
-
-                        suggestion = tag.select('td')[3].get_text().strip().upper().replace(' ', '')
+                        suggestion = report.get('GRADE_VALUE', '').upper().replace(' ', '')
                         if suggestion in self.suggestion_correction:
                             suggestion = self.suggestion_correction[suggestion]
-
-                        writer: str = tag.select('td')[4].get_text().strip()
-                        pdf_link: str = self.url + tag.select_one('a')['href']
 
                         category = ''
                         label = self.category_df.loc[self.category_df['종목코드'] == company_code]['업종']
@@ -112,9 +87,10 @@ class HKRequests:
                         summary: str = self.analyzer.summary
 
                         report: Dict = {'title': title, 'company_name': company_name, 'company_code': company_code,
-                                        'category': category, 'date': date, 'suggestion': suggestion, 'writer': writer,
-                                        'report_corp': report_corp, 'target_est': target_est, 'current_est': current_est,
-                                        'current_est_date': current_est_date, 'pdf_link': pdf_link, 'summary': summary}
+                                        'category': category, 'report_date': report_date, 'suggestion': suggestion,
+                                        'writer': writer, 'report_corp': report_corp, 'target_est': target_est,
+                                        'current_est': current_est, 'current_est_date': current_est_date,
+                                        'pdf_link': pdf_link, 'summary': summary}
 
                         # 속성 값이 모두 비어있지 않은 경우만 리스트에 추가
                         if None not in report.values():
@@ -124,6 +100,6 @@ class HKRequests:
                 print(e, flush=True)
                 return reports_list
 
-            self.now_page += 1
+            self.params['page'] += 1
 
         return reports_list
