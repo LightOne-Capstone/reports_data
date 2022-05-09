@@ -1,6 +1,6 @@
 tika>=1.24
 requests>=2.22.0
-beautifulsoup4>=4.8.0
+fake-useragent>=0.1.11
 kss>=3.4.2
 torch>=1.11.0
 transformers>=4.17.0
