@@ -1,10 +1,13 @@
 import re
+from collections import Counter
 from datetime import datetime
 
 import kss
 import requests
 import torch
+from konlpy.tag import Okt
 from tika import parser
+from wordcloud import WordCloud
 
 
 class PdfAnalysis:
@@ -16,18 +19,13 @@ class PdfAnalysis:
         self.tokenizer = _tokenizer
         self.resource = None
         self.content = None
-        self.current_est = None
-        self.current_est_date = None
         self.opinion = None
-        self.summary = None
 
     def analysis(self, resource: str):
         self.resource = resource
         self.content = self.__get_text()
-        self.current_est, self.current_est_date = self.__get_current_est_info()
-        self.opinion, self.summary = self.__get_summary()
 
-    def __get_text(self) -> str:
+    def __get_text(self):
         # url로 텍스트 추출
         headers = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
                                  'Chrome/51.0.2704.103 Safari/537.36'}
@@ -38,7 +36,7 @@ class PdfAnalysis:
         text: str = text[:self.max_content_len]
         return text
 
-    def __get_current_est_info(self):
+    def get_current_est_info(self):
         try:
             text: str = re.search(r'[^목표]{3}[주종]가[\s:]{,2}[\d,]{,10}원?\([^A-Za-z가-힣]{1,10}\)[\s:]{,2}[\d,]{,10}원?',
                                   self.content).group()[3:]
@@ -52,22 +50,21 @@ class PdfAnalysis:
             date_text = year[:2] + date_text if date_text.find('-') == 2 else date_text
             date_obj = datetime.strptime(date_text, '%Y-%m-%d')
             current_est_date = str(date_obj.date())
-        except AttributeError as e:
+        except AttributeError:
             return None, None
-
         return current_est, current_est_date
 
-    def __get_summary(self) -> (str, str):
+    def get_summary(self):
         # 필요 없는 정보, 특수문자 제거
-        self.content = re.sub(r'\([^가-힣]{1,30}\)', '', self.content)  # (QoQ -21%, YoY 6%)
-        self.content = re.sub(r'[’‘①②③④⑤]', '', self.content)  # 불필요한 특수문자
-        self.content = re.sub(r'\s+[\->]\s+', '. ', self.content)  # '-', '>'
-        self.content = re.sub(r'\s*▶\s*', '. ', self.content)  # '▶'
-        self.content = re.sub(r'\d\)', '', self.content)  # 1) 2) 3) ..
+        text = re.sub(r'\([^가-힣]{1,30}\)', '', self.content)  # (QoQ -21%, YoY 6%)
+        text = re.sub(r'[’‘①②③④⑤]', '', text)  # 불필요한 특수문자
+        text = re.sub(r'\s+[\->]\s+', '. ', text)  # '-', '>'
+        text = re.sub(r'\s*▶\s*', '. ', text)  # '▶'
+        text = re.sub(r'\d\)', '', text)  # 1) 2) 3) ..
 
         # 문장 분리 (kss)
         split_sent = kss.split_sentences(
-            text=self.content,
+            text=text,
             backend="mecab")  # 문장분리 속도 증가
         opinion_sent = []
         for sent in split_sent:
@@ -82,18 +79,42 @@ class PdfAnalysis:
                         and len(re.findall(r'표\s?\d', sent)) == 0
                         and len(re.findall(r'그림\s?\d', sent)) == 0
                         and sent.find('자료') == -1]
-        opinion = '. '.join(opinion_sent).replace('..', '.')
+        self.opinion = '. '.join(opinion_sent).replace('..', '.')
 
         # 문장요약 알고리즘
-        raw_input_ids = self.tokenizer.encode(opinion)
+        raw_input_ids = self.tokenizer.encode(self.opinion)
         input_ids = [self.tokenizer.bos_token_id] + raw_input_ids + [self.tokenizer.eos_token_id]
         summary_ids = self.model.generate(torch.tensor([input_ids]),
                                           max_length=256,
                                           early_stopping=True,
                                           repetition_penalty=12.0)
         summary: str = self.tokenizer.decode(summary_ids.squeeze().tolist(), skip_special_tokens=True)
+        return summary
 
-        return opinion, summary
+    def get_keywords(self, pdf_id):
+        # 형태소 분석기로 명사 추출
+        okt = Okt()
+        noun = [n for n in okt.nouns(self.opinion) if len(n) > 1]
+        count = Counter(noun)
+        noun_list = count.most_common(50)
+
+        # 명사가 10개 미만인 경우 제외
+        if len(noun_list) < 10:
+            return None
+
+        # word cloud 이미지 파일 생성
+        wc = WordCloud(font_path='/Library/Fonts/Arial Unicode.ttf',
+                       background_color='white',
+                       width=1000,
+                       height=1000,
+                       max_words=50,
+                       max_font_size=250)
+        wc.generate_from_frequencies(dict(noun_list))
+        wc.to_file('img/' + pdf_id + '.png')
+
+        # 키워드만 분리하여 반환
+        keywords, _ = zip(*noun_list)
+        return list(keywords)
 
 
 if __name__ == '__main__':
@@ -104,10 +125,10 @@ if __name__ == '__main__':
     model = BartForConditionalGeneration.from_pretrained('gogamza/kobart-summarization').eval()
     tokenizer = PreTrainedTokenizerFast.from_pretrained('gogamza/kobart-summarization')
 
-    url = 'https://markets.hankyung.com/pdf/2022/05/d2ade73ba832488c0c00d3974ef4670d'
+    url = 'https://markets.hankyung.com/pdf/2022/05/6a56eebda300e868da7cbac1d3fe3636'
     pa = PdfAnalysis(_model=model, _tokenizer=tokenizer)
     pa.analysis(url)
-    print(pa.current_est)
-    print(pa.current_est_date)
+    print(pa.get_current_est_info())
+    print(pa.get_summary())
     print(pa.opinion)
-    print(pa.summary)
+    print(pa.get_keywords('6a56eebda300e868da7cbac1d3fe3636'))

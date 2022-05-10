@@ -1,15 +1,14 @@
-import os
-import logging
 import argparse
-
-from hkrequests import HKRequests
-from pdf_analysis import PdfAnalysis
-
+import logging
+import os
 from datetime import datetime, timedelta
 from typing import *
 
 from transformers import BartForConditionalGeneration
 from transformers import PreTrainedTokenizerFast
+
+from hkrequests import HKRequests
+from pdf_analysis import PdfAnalysis
 
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
 logger = logging.getLogger('transformers.tokenization_utils_base')

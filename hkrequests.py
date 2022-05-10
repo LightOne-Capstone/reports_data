@@ -3,7 +3,6 @@ import requests
 import pandas as pd
 from typing import *
 from fake_useragent import UserAgent
-from pprint import pprint
 
 
 class HKRequests:
@@ -90,7 +89,7 @@ class HKRequests:
                                 self.exceed_range = True
                                 break
 
-                            pdf_id = pdf_link.split('/').pop()
+                            pdf_id = pdf_link.split('/')[-1]
                             writer = report.get('REPORT_WRITER', '')
                             target_est = int(report.get('TARGET_STOCK_PRICES', 0))
 
@@ -104,19 +103,23 @@ class HKRequests:
                             if not label.empty:
                                 category = label.iloc[0]
 
-                            # url -> 현재 주가, 기준 날짜, 리포트 요약
+                            # 리포트 pdf -> 현재 주가, 기준 날짜, 리포트 요약, 키워드
                             self.analyzer.analysis(pdf_link)
-                            current_est: int = self.analyzer.current_est
-                            current_est_date: str = self.analyzer.current_est_date
-                            summary: str = self.analyzer.summary
+                            current_est, current_est_date = self.analyzer.get_current_est_info()
+                            if current_est is None or current_est_date is None:
+                                continue
 
+                            summary = self.analyzer.get_summary()
+                            keywords = self.analyzer.get_keywords(pdf_id)
+
+                            # 속성 값이 모두 비어있지 않은 경우만 리스트에 추가
                             report_info = {'title': title, 'company_name': company_name, 'company_code': company_code,
                                            'category': category, 'report_date': report_date, 'suggestion': suggestion,
                                            'writer': writer, 'report_corp': report_corp, 'target_est': target_est,
                                            'current_est': current_est, 'current_est_date': current_est_date,
-                                           'pdf_link': pdf_link, 'pdf_id': pdf_id, 'summary': summary}
+                                           'summary': summary, 'keywords': keywords,
+                                           'pdf_link': pdf_link, 'pdf_id': pdf_id}
 
-                            # 속성 값이 모두 비어있지 않은 경우만 리스트에 추가
                             if None not in report_info.values():
                                 reports_list.append(report_info)
                                 self.processed_reports += 1
