@@ -90,6 +90,7 @@ class HKRequests:
                                 self.exceed_range = True
                                 break
 
+                            pdf_id = pdf_link.split('/').pop()
                             writer = report.get('REPORT_WRITER', '')
                             target_est = int(report.get('TARGET_STOCK_PRICES', 0))
 
@@ -113,7 +114,7 @@ class HKRequests:
                                            'category': category, 'report_date': report_date, 'suggestion': suggestion,
                                            'writer': writer, 'report_corp': report_corp, 'target_est': target_est,
                                            'current_est': current_est, 'current_est_date': current_est_date,
-                                           'pdf_link': pdf_link, 'summary': summary}
+                                           'pdf_link': pdf_link, 'pdf_id': pdf_id, 'summary': summary}
 
                             # 속성 값이 모두 비어있지 않은 경우만 리스트에 추가
                             if None not in report_info.values():
