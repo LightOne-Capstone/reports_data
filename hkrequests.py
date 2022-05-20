@@ -41,7 +41,7 @@ class HKRequests:
         self.exceed_range = False
         self.processed_reports = 0
 
-        self.category_file_path = 'corplist.csv'
+        self.category_file_path = 'res/csv/corplist.csv'
         self.category_df = self.__get_category_dataframe()
 
     def __get_category_dataframe(self):
