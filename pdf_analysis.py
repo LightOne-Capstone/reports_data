@@ -3,10 +3,13 @@ from collections import Counter
 from datetime import datetime
 
 import kss
+import numpy as np
 import requests
 import torch
+from PIL import Image
 from konlpy.tag import Okt
 from tika import parser
+
 from wordcloud import WordCloud
 
 
@@ -103,18 +106,16 @@ class PdfAnalysis:
             return None
 
         # word cloud 이미지 파일 생성
-        wc = WordCloud(font_path='/Library/Fonts/Arial Unicode.ttf',
-                       background_color='white',
-                       width=1000,
-                       height=1000,
-                       max_words=50,
-                       max_font_size=250)
+        wc = WordCloud(font_path='res/font/AppleSDGothicNeoB.ttf',
+                       colormap='GnBu', background_color='white',
+                       mask=np.array(Image.open('res/img/mask/circle.png')),
+                       width=1000, height=1000, max_words=50, max_font_size=250)
         wc.generate_from_frequencies(dict(noun_list))
-        wc.to_file('img/' + pdf_id + '.png')
+        wc.to_file('res/img/wordcloud/' + pdf_id + '.png')
 
         # 키워드만 분리하여 반환
         keywords, _ = zip(*noun_list)
-        return list(keywords)
+        return ' '.join(list(keywords))
 
 
 if __name__ == '__main__':
