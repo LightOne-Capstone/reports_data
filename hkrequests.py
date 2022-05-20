@@ -73,7 +73,7 @@ class HKRequests:
                             if report_corp not in self.target_corp:
                                 continue
 
-                            title = re.sub(pattern=r'[가-힣\w\s]+\(\d{6}\)', repl='',
+                            title = re.sub(pattern=r'[가-힣\w\W]+\(\d{6}\)', repl='',
                                            string=report.get('REPORT_TITLE', '')).strip()
                             report_date = report.get('REPORT_DATE', '')
                             company_code = report.get('BUSINESS_CODE', '')
