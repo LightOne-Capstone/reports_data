@@ -98,38 +98,33 @@ class PdfAnalysis:
         # 형태소 분석기로 명사 추출
         okt = Okt()
         noun = [n for n in okt.nouns(self.opinion) if len(n) > 1]
-        count = Counter(noun)
-        noun_list = count.most_common(50)
 
-        # 명사가 10개 미만인 경우 제외
-        if len(noun_list) < 10:
+        # 불용어 제거
+        with open('res/word/stopwords.txt', 'r') as f:
+            stopwords = f.read().split('\n')
+        noun = [n for n in noun if n not in stopwords]
+        noun_list = Counter(noun).most_common(50)
+
+        # 주요 용어 강조
+        with open('res/word/mainwords.txt') as f:
+            mainwords = f.read().split('\n')
+        for i in range(len(noun_list)):
+            if noun_list[i][0] in mainwords:
+                noun_list[i] = noun_list[i][:1] + (noun_list[i][1] + 10,)
+
+        # 명사가 15개 미만인 경우 제외
+        if len(noun_list) < 15:
+            print("Dropped!")
             return None
 
         # word cloud 이미지 파일 생성
         wc = WordCloud(font_path='res/font/AppleSDGothicNeoB.ttf',
-                       colormap='GnBu', background_color='white',
+                       width=1000, height=1000, max_font_size=180, max_words=50,
                        mask=np.array(Image.open('res/img/mask/circle.png')),
-                       width=1000, height=1000, max_words=50, max_font_size=250)
+                       colormap='GnBu', background_color='white', repeat=True)
         wc.generate_from_frequencies(dict(noun_list))
         wc.to_file('res/img/wordcloud/' + pdf_id + '.png')
 
         # 키워드만 분리하여 반환
         keywords, _ = zip(*noun_list)
         return ' '.join(list(keywords))
-
-
-if __name__ == '__main__':
-    # example
-    from transformers import BartForConditionalGeneration
-    from transformers import PreTrainedTokenizerFast
-
-    model = BartForConditionalGeneration.from_pretrained('gogamza/kobart-summarization').eval()
-    tokenizer = PreTrainedTokenizerFast.from_pretrained('gogamza/kobart-summarization')
-
-    url = 'https://markets.hankyung.com/pdf/2022/05/6a56eebda300e868da7cbac1d3fe3636'
-    pa = PdfAnalysis(_model=model, _tokenizer=tokenizer)
-    pa.analysis(url)
-    print(pa.get_current_est_info())
-    print(pa.get_summary())
-    print(pa.opinion)
-    print(pa.get_keywords('6a56eebda300e868da7cbac1d3fe3636'))
