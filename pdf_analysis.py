@@ -41,7 +41,7 @@ class PdfAnalysis:
 
     def get_current_est_info(self):
         try:
-            text: str = re.search(r'[^목표]{3}[주종]가[\s:]{,2}[\d,]{,10}원?\([^A-Za-z가-힣]{1,10}\)[\s:]{,2}[\d,]{,10}원?',
+            text: str = re.search(r'[^목표]{3}[주종재]가[\s:]{,2}[\d,]{,10}원?\([^A-Za-z가-힣]{1,10}\)[\s:]{,2}[\d,]{,10}원?',
                                   self.content).group()[3:]
             # 현재 주가
             raw_current_est: str = re.search(r'\s[\d,]+', text).group().strip().replace(',', '')

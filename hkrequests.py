@@ -13,7 +13,8 @@ class HKRequests:
     투자 의견 : [BUY, HOLD, NR, OUTPERFORM, REDUCE, STRONGBUY, SUSPENDED, TRADINGBUY, UNDERPERFORM, ...]
     """
     def __init__(self, _sdate: str, _edate: str, _analyzer):
-        self.target_corp = {'대신증권', '유안타증권', '유진투자증권', '키움증권', '하이투자증권'}
+        self.target_corp = {'대신증권', '메리츠증권', '유안타증권', '유진투자증권', '키움증권',
+                            '하이투자증권', '한양증권', '한화투자증권', 'IBK투자증권', 'SK증권'}
         self.suggestion_correction = {'-': 'NR', 'NOTRATED': 'NR', 'NA': 'NR', 'N/A': 'NR', '중립': 'HOLD',
                                       '매수': 'BUY', 'MARKETPERFORM': 'HOLD', 'NEUTRAL': 'HOLD',
                                       '적극매수': 'STRONGBUY', '투자의견없음': 'NR'}
